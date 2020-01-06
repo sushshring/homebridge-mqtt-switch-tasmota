@@ -8,7 +8,7 @@ Like this? Please buy me a beer (or coffee)  ;-) <a href="https://www.paypal.com
 
 Installation
 --------------------
-    sudo npm install -g homebridge-mqtt-switch-tasmota
+    sudo npm install -g homebridge-mqtt-threestate-light-tasmota
 
 Sample HomeBridge Configuration (complete)
 --------------------

@@ -1,14 +1,14 @@
 {
-  "name": "homebridge-mqtt-switch-tasmota",
-  "version": "0.9.9",
-  "description": "Plugin to HomeBridge optimized for work with Itead Sonoff and Electrodragon Relay Board hardware with firmware Sonoff-Tasmota via MQTT.",
+  "name": "homebridge-mqtt-threestate-light-tasmota",
+  "version": "0.0.1",
+  "description": "Plugin to HomeBridge optimized for work with Itead Sonoff with firmware Sonoff-Tasmota via MQTT specifically for lights that run a three cycle color scheme. Based on the repositoru at https://github.com/MacWyznawca/homebridge-mqtt-switch-tasmota",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/MacWyznawca/homebridge-mqtt-switch-tasmota.git"
+    "url": "git+https://github.com/sushshring/homebridge-mqtt-switch-tasmota.git"
   },
   "dependencies": {
     "mqtt": "^1.12.0"
@@ -25,14 +25,14 @@
     "itead",
     "tasmota",
     "Sonoff-Tasmota",
-	"electrodragon",
-	"Wifi IoT Relay Board",
-	"Relay"
+    "electrodragon",
+    "Wifi IoT Relay Board",
+    "Relay"
   ],
-  "author": "Jaromir Kopp",
+  "author": "Sushrut Shringarputale",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/MacWyznawca/homebridge-mqtt-switch-tasmota/issues"
+    "url": "https://github.com/sushshring/homebridge-mqtt-switch-tasmota/issues"
   },
-  "homepage": "https://github.com/MacWyznawca/homebridge-mqtt-switch-tasmota#readme"
+  "homepage": "https://github.com/sushshring/homebridge-mqtt-switch-tasmota#readme"
 }

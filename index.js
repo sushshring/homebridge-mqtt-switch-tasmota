@@ -10,10 +10,23 @@ module.exports = function(homebridge) {
 	Service = homebridge.hap.Service;
 	Characteristic = homebridge.hap.Characteristic;
 
-	homebridge.registerAccessory("homebridge-mqtt-switch-tasmota", "mqtt-switch-tasmota", MqttSwitchTasmotaAccessory);
+	homebridge.registerAccessory("homebridge-mqtt-threestate-light-tasmota", "mqtt-threestate-light-tasmota", MqttThreeStateTasmotaAccessory);
 }
 
-function MqttSwitchTasmotaAccessory(log, config) {
+const COLORS = {
+	WHITE: 'white',
+	DAYLIGHT: 'daylight',
+	YELLOW: 'yellow',
+	OFF: 'off',
+}
+
+const TYPE = {
+	OUTLET: 'outlet',
+	SWITCH: 'switch',
+	LIGHTBULB: 'lightbulb',
+}
+
+function MqttThreeStateTasmotaAccessory(log, config) {
 	this.log = log;
 
 	this.url = config["url"];
@@ -43,6 +56,8 @@ function MqttSwitchTasmotaAccessory(log, config) {
 
 	this.topicStatusGet = config["topics"].statusGet;
 	this.topicStatusSet = config["topics"].statusSet;
+	this.topicColorGet = config["topics"].colorGet || "";
+	this.topicColorSet = config["topics"].colorSet || "";
 	this.topicsStateGet = (config["topics"].stateGet !== undefined) ? config["topics"].stateGet : "";
 
 	this.onValue = (config["onValue"] !== undefined) ? config["onValue"] : "ON";
@@ -65,17 +80,25 @@ function MqttSwitchTasmotaAccessory(log, config) {
 	this.model = config['model'] || "Sonoff";
 	this.serialNumberMAC = config['serialNumberMAC'] || "";
 
-	this.outlet = (config["switchType"] !== undefined) ? ((config["switchType"] == "outlet") ? true : false) : false;
+	this.outlet = getType(config["switchType"])
 
 	this.switchStatus = false;
+	this.colorStatus = COLORS.WHITE;
 
-	if (this.outlet) {
+	if (this.outlet == TYPE.OUTLET) {
 		this.service = new Service.Outlet(this.name);
 		this.service
 			.getCharacteristic(Characteristic.OutletInUse)
 			.on('get', this.getOutletUse.bind(this));
-	} else {
+	} else if (this.outlet == TYPE.SWITCH) {
 		this.service = new Service.Switch(this.name);
+	} else if (this.outlet == TYPE.LIGHTBULB) {
+		this.service = new Service.Lightbulb(this.name);
+		this.service.getCharacteristic(Characteristic.Hue)
+			.on('get', this.getColor.bind(this))
+			.on('set', this.setColor.bind(this));
+	} else {
+		throw new Error('Illegal type');
 	}
 
 	this.service
@@ -139,18 +162,84 @@ function MqttSwitchTasmotaAccessory(log, config) {
 			var status = message.toString();
 			that.activeStat = (status == that.activityParameter);
 			that.service.setCharacteristic(Characteristic.StatusActive, that.activeStat);
+		} else if (topic == that.topicColorGet) {
+			try {
+				var data = JSON.parse(message);
+				if (data.hasOwnProperty('color')) {
+					var color = data['color'];
+					that.colorStatus = getColorFromStatus(color);
+					that.service.setCharacteristic(Characteristic.Hue, getHueFromColor(that.colorStatus));
+				}
+			} catch (e) {}
 		}
 	});
 	this.client.subscribe(this.topicStatusGet);
 	if (this.topicsStateGet !== "") {
 		this.client.subscribe(this.topicsStateGet);
 	}
+	if (this.topicColorGet !== "") {
+		this.client.subscribe(this.topicColorGet);
+	}
+	if (this.topicColorSet !== "") {
+		this.client.subscribe(this.topicColorSet);
+	}
 	if (this.activityTopic !== "") {
 		this.client.subscribe(this.activityTopic);
 	}
 }
 
-MqttSwitchTasmotaAccessory.prototype.getStatus = function(callback) {
+function getColorFromStatus(status) {
+	switch(status) {
+		case 'white':
+			return COLORS.WHITE;
+		case 'daylight':
+			return COLORS.DAYLIGHT;
+		case 'yellow':
+			return COLORS.YELLOW;
+		case 'off':
+			return COLORS.OFF;
+		default:
+			return COLORS.WHITE;
+	}
+}
+
+function getHueFromColor(color) {
+	switch(color) {
+		case COLORS.WHITE:
+			return 0;
+		case COLORS.DAYLIGHT:
+			return 100;
+		case COLORS.YELLOW:
+			return 200;
+		default:
+			return 0;
+	}
+}
+
+function getColorFromHue(hue) {
+	if (hue >= 0 && hue < 100) {
+		return COLORS.WHITE;
+	}
+	if (hue >= 100 && hue < 200) {
+		return COLORS.DAYLIGHT;
+	}
+	return COLORS.YELLOW;
+}
+
+function getType(type) {
+	switch(type) {
+		case 'outlet':
+			return TYPE.OUTLET;
+		case 'switch':
+			return TYPE.SWITCH;
+		case 'lightbulb':
+			return TYPE.LIGHTBULB;
+		default:
+			return TYPE.OUTLET;
+	}
+}
+
+MqttThreeStateLightTasmotaAccessory.prototype.getStatus = function(callback) {
 	if (this.activeStat) {
 		this.log("Power state for '%s' is %s", this.name, this.switchStatus);
 		callback(null, this.switchStatus);
@@ -160,7 +249,7 @@ MqttSwitchTasmotaAccessory.prototype.getStatus = function(callback) {
 	}
 }
 
-MqttSwitchTasmotaAccessory.prototype.setStatus = function(status, callback, context) {
+MqttThreeStateLightTasmotaAccessory.prototype.setStatus = function(status, callback, context) {
 	if (context !== 'fromSetValue') {
 		this.switchStatus = status;
 		this.log("Set power state on '%s' to %s", this.name, status);
@@ -169,16 +258,37 @@ MqttSwitchTasmotaAccessory.prototype.setStatus = function(status, callback, cont
 	callback();
 }
 
-MqttSwitchTasmotaAccessory.prototype.getStatusActive = function(callback) {
+// Returns a Hue to the caller
+MqttThreeStateLightTasmotaAccessory.prototype.getColor = function(callback) {
+	if (this.colorStatus) {
+		this.log("Color state for '%s' is %s", this.name, this.colorStatus);
+		callback(null, this.getHueFromColor(this.colorStatus));
+	} else {
+		this.log("'%s' is offline", this.name);
+		callback('No Response');
+	}
+}
+
+// Sets the color state based on Hue
+MqttThreeStateLightTasmotaAccessory.prototype.setColor = function(hue, callback, context) {
+	if (context !== 'fromSetValue') {
+		this.colorStatus = getColorFromHue(hue);
+		this.log("Set color state on '%s' to %s", this.name, hue);
+		this.client.publish(this.topicColorSet + '/' + this.colorStatus, '', this.publish_options);
+	}
+	callback();
+}
+
+MqttThreeStateLightTasmotaAccessory.prototype.getStatusActive = function(callback) {
 	this.log(this.name, " -  Activity Set : ", this.activeStat);
 	callback(null, this.activeStat);
 }
 
-MqttSwitchTasmotaAccessory.prototype.getOutletUse = function(callback) {
+MqttThreeStateLightTasmotaAccessory.prototype.getOutletUse = function(callback) {
 	callback(null, true); // If configured for outlet - always in use (for now)
 }
 
-MqttSwitchTasmotaAccessory.prototype.getServices = function() {
+MqttThreeStateLightTasmotaAccessory.prototype.getServices = function() {
 
 	var informationService = new Service.AccessoryInformation();
 
