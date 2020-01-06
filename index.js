@@ -84,6 +84,7 @@ function MqttThreeStateLightTasmotaAccessory(log, config) {
 
 	this.switchStatus = false;
 	this.colorStatus = COLORS.WHITE;
+	this.hue = 50;
 
 	if (this.outlet == TYPE.OUTLET) {
 		this.service = new Service.Outlet(this.name);
@@ -95,8 +96,11 @@ function MqttThreeStateLightTasmotaAccessory(log, config) {
 	} else if (this.outlet == TYPE.LIGHTBULB) {
 		this.service = new Service.Lightbulb(this.name);
 		this.service.getCharacteristic(Characteristic.Hue)
-			.on('get', this.getColor.bind(this))
-			.on('set', this.setColor.bind(this));
+			.on('get', this.getHue.bind(this))
+			.on('set', this.setHue.bind(this));
+		this.service.getCharacteristic(Characteristic.Saturation)
+			.on('get', this.getSaturation.bind(this))
+			.on('set', this.setSaturation.bind(this));
 	} else {
 		throw new Error('Illegal type');
 	}
@@ -168,7 +172,7 @@ function MqttThreeStateLightTasmotaAccessory(log, config) {
 				if (data.hasOwnProperty('color')) {
 					var color = data['color'];
 					that.colorStatus = getColorFromStatus(color);
-					that.service.setCharacteristic(Characteristic.Hue, getHueFromColor(that.colorStatus));
+					that.service.setCharacteristic(Characteristic.Hue, getSaturationFromColor(that.colorStatus));
 				}
 			} catch (e) {}
 		}
@@ -203,24 +207,24 @@ function getColorFromStatus(status) {
 	}
 }
 
-function getHueFromColor(color) {
+function getSaturationFromColor(color) {
 	switch(color) {
 		case COLORS.WHITE:
 			return 0;
 		case COLORS.DAYLIGHT:
-			return 100;
+			return 35;
 		case COLORS.YELLOW:
-			return 200;
+			return 78;
 		default:
 			return 0;
 	}
 }
 
-function getColorFromHue(hue) {
-	if (hue >= 0 && hue < 100) {
+function getColorFromSaturation(saturation) {
+	if (saturation >= 0 && saturation < 33) {
 		return COLORS.WHITE;
 	}
-	if (hue >= 100 && hue < 200) {
+	if (saturation >= 33 && saturation < 66) {
 		return COLORS.DAYLIGHT;
 	}
 	return COLORS.YELLOW;
@@ -258,11 +262,11 @@ MqttThreeStateLightTasmotaAccessory.prototype.setStatus = function(status, callb
 	callback();
 }
 
-// Returns a Hue to the caller
-MqttThreeStateLightTasmotaAccessory.prototype.getColor = function(callback) {
+// Returns saturation to the caller
+MqttThreeStateLightTasmotaAccessory.prototype.getSaturation = function(callback) {
 	if (this.colorStatus) {
 		this.log("Color state for '%s' is %s", this.name, this.colorStatus);
-		callback(null, this.getHueFromColor(this.colorStatus));
+		callback(null, getSaturationFromColor(this.colorStatus));
 	} else {
 		this.log("'%s' is offline", this.name);
 		callback('No Response');
@@ -270,11 +274,30 @@ MqttThreeStateLightTasmotaAccessory.prototype.getColor = function(callback) {
 }
 
 // Sets the color state based on Hue
-MqttThreeStateLightTasmotaAccessory.prototype.setColor = function(hue, callback, context) {
+MqttThreeStateLightTasmotaAccessory.prototype.setSaturation = function(saturation, callback, context) {
 	if (context !== 'fromSetValue') {
-		this.colorStatus = getColorFromHue(hue);
-		this.log("Set color state on '%s' to %s", this.name, hue);
-		this.client.publish(this.topicColorSet + '/' + this.colorStatus, '', this.publish_options);
+		this.colorStatus = getColorFromSaturation(saturation);
+		this.log("Set color state on '%s' to %s", this.name, saturation);
+		this.client.publish(this.topicColorSet + '/' + this.colorStatus, this.colorStatus, this.publish_options);
+	}
+	callback();
+}
+// Returns a Hue to the caller
+MqttThreeStateLightTasmotaAccessory.prototype.getHue = function(callback) {
+	if (this.hue) {
+		this.log("Responding with hue", this.hue);
+		callback(null, this.hue);
+	} else {
+		this.log("'%s' is offline", this.name);
+		callback('No Response');
+	}
+}
+
+// Sets the color state based on Hue
+MqttThreeStateLightTasmotaAccessory.prototype.setHue = function(hue, callback, context) {
+	if (context !== 'fromSetValue') {
+		this.log("Hue: ", hue);
+		this.hue = hue || 50;
 	}
 	callback();
 }
