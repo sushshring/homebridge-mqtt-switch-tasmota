@@ -10,7 +10,7 @@ module.exports = function(homebridge) {
 	Service = homebridge.hap.Service;
 	Characteristic = homebridge.hap.Characteristic;
 
-	homebridge.registerAccessory("homebridge-mqtt-threestate-light-tasmota", "mqtt-threestate-light-tasmota", MqttThreeStateTasmotaAccessory);
+	homebridge.registerAccessory("homebridge-mqtt-threestate-light-tasmota", "mqtt-threestate-light-tasmota", MqttThreeStateLightTasmotaAccessory);
 }
 
 const COLORS = {
