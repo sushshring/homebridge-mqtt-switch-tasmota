@@ -26,7 +26,7 @@ const TYPE = {
 	LIGHTBULB: 'lightbulb',
 }
 
-function MqttThreeStateTasmotaAccessory(log, config) {
+function MqttThreeStateLightTasmotaAccessory(log, config) {
 	this.log = log;
 
 	this.url = config["url"];

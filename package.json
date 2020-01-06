@@ -1,6 +1,6 @@
 {
   "name": "homebridge-mqtt-threestate-light-tasmota",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Plugin to HomeBridge optimized for work with Itead Sonoff with firmware Sonoff-Tasmota via MQTT specifically for lights that run a three cycle color scheme. Based on the repositoru at https://github.com/MacWyznawca/homebridge-mqtt-switch-tasmota",
   "main": "index.js",
   "scripts": {
